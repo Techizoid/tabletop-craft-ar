@@ -215,7 +215,7 @@ namespace TabletopCraft.XR
         {
             float now = Time.unscaledTime;
             double dnow = Time.unscaledTimeAsDouble;
-            if (_hapticOff >= 0 && now >= _hapticOff) { _hapticOff = -1; OVRInput.SetControllerVibration(0, 0, OVRInput.Controller.RTouch); }
+            if (_hapticOff >= 0 && now >= _hapticOff) { _hapticOff = -1; TInput.SetControllerVibration(0, 0, TInput.Controller.RTouch); }
             Model.Connected = Online?.Invoke() ?? false;
             TrackPointer(now);
             // [operator] what the Marks tab, Follow and the container view need from the rest of the app
@@ -228,11 +228,11 @@ namespace TabletopCraft.XR
             else
             {
                 // X on the left controller is Button.One with Controller.LTouch (Three/Four only exist for Controller.Touch).
-                if (OVRInput.GetDown(OVRInput.Button.One, OVRInput.Controller.LTouch)) { Model.XDown(dnow); _placed = false; }
-                if (OVRInput.Get(OVRInput.Button.One, OVRInput.Controller.LTouch)) Model.XHeld(dnow);
-                if (OVRInput.GetUp(OVRInput.Button.One, OVRInput.Controller.LTouch)) Model.XUp(dnow);
+                if (TInput.GetDown(TInput.Button.One, TInput.Controller.LTouch)) { Model.XDown(dnow); _placed = false; }
+                if (TInput.Get(TInput.Button.One, TInput.Controller.LTouch)) Model.XHeld(dnow);
+                if (TInput.GetUp(TInput.Button.One, TInput.Controller.LTouch)) Model.XUp(dnow);
                 // The menu button switches to the block menu (which opens itself once this panel is closed).
-                if (Model.Open && OVRInput.GetDown(OVRInput.Button.Start, OVRInput.Controller.LTouch)) Model.SetOpen(false);
+                if (Model.Open && TInput.GetDown(TInput.Button.Start, TInput.Controller.LTouch)) Model.SetOpen(false);
             }
             Bubbles.Prune(dnow);
             if (_safetyVersion != Model.Safety.Version) { _safetyVersion = Model.Safety.Version; Bubbles.RemoveWhere(Model.Safety.IsMuted); }   // [safety]
@@ -244,9 +244,9 @@ namespace TabletopCraft.XR
                 Pointer();
                 if (Model.CapturesRight)
                 {
-                    if (OVRInput.GetDown(OVRInput.Button.PrimaryIndexTrigger, OVRInput.Controller.RTouch)) Act(Model.Click(_layout, dnow));
-                    Model.Stick(OVRInput.Get(OVRInput.Axis2D.PrimaryThumbstick, OVRInput.Controller.RTouch).y, dnow);
-                    if (OVRInput.GetDown(OVRInput.Button.PrimaryThumbstick, OVRInput.Controller.RTouch) && Model.StickClick(dnow)) Haptic(0.2f);
+                    if (TInput.GetDown(TInput.Button.PrimaryIndexTrigger, TInput.Controller.RTouch)) Act(Model.Click(_layout, dnow));
+                    Model.Stick(TInput.Get(TInput.Axis2D.PrimaryThumbstick, TInput.Controller.RTouch).y, dnow);
+                    if (TInput.GetDown(TInput.Button.PrimaryThumbstick, TInput.Controller.RTouch) && Model.StickClick(dnow)) Haptic(0.2f);
                 }
                 Background(dnow);
             }
@@ -337,7 +337,7 @@ namespace TabletopCraft.XR
 
         void Haptic(float amplitude)
         {
-            OVRInput.SetControllerVibration(0.6f, amplitude, OVRInput.Controller.RTouch);
+            TInput.SetControllerVibration(0.6f, amplitude, TInput.Controller.RTouch);
             _hapticOff = Time.unscaledTime + 0.035f;
         }
 

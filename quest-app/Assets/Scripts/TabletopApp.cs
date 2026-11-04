@@ -98,6 +98,12 @@ namespace TabletopCraft
         static string ConfigPath => Path.Combine(Application.persistentDataPath, ConfigFile.FileName);
         static string PrefsPath => Path.Combine(Application.persistentDataPath, AppPrefs.FileName);
         string _lastError = "";
+        // [hololens] What differs by device: face budget, light floor, meshing threads (World/PadInput.cs DeviceProfile)
+#if TABLETOP_HL2
+        static readonly DeviceProfile Device = DeviceProfile.HoloLens2;
+#else
+        static readonly DeviceProfile Device = DeviceProfile.Quest;
+#endif
         AndroidJavaObject _wifiLock;
         // [nav] moving around, streaming, clip caps
         NavController _nav;
@@ -225,6 +231,10 @@ namespace TabletopCraft
         {
             SnapshotBuffers.Enabled = true;   // [smooth] glide shifts reuse retired grid/light arrays (tabletop.json can turn it off)
             Protocol.ClientVersion = Application.version;   // [setup] hello.client_version
+            // [hololens] The device's defaults first; tabletop.json ("min_light", "mesh_workers", "quad_budget") still wins.
+            // An additive display shows black as clear, so the darkest light level must stay visible.
+            if (Device.MinLight >= 0f) BlockShading.MinLight = Device.MinLight;
+            if (Device.MeshWorkers > 0) TabletopRenderer.Workers = Device.MeshWorkers;
             LoadConfig();
             LoadPairings();   // [setup]
             // [smooth] Log lines without a stack trace: collecting one costs about a millisecond under IL2CPP, and the app
@@ -233,12 +243,22 @@ namespace TabletopCraft
             gameObject.AddComponent<HitchProbe>();   // [smooth] HITCH lines for frames over hitch_ms
             MeshScope.SkirtFactor = SurfaceSkirt.Enabled ? SurfaceSkirt.SpeedFactor : 1f;   // [mesh] the skirt covers what meshing lags behind
             LoadPrefs();   // [comfort] prefs.json, and which of tabletop.json's shared keys win
+#if !TABLETOP_HL2
             var rig = FindFirstObjectByType<OVRCameraRig>();
             if (rig != null)
             {
                 if (!Head) Head = rig.centerEyeAnchor;
                 if (!LeftHand) LeftHand = rig.leftHandAnchor;
                 if (!RightHand) RightHand = rig.rightHandAnchor;
+            }
+#endif
+            // [hololens] The rig HoloLens 2's scene builds: head, and the two hands' aim transforms (XR/HoloLensRig.cs).
+            var holoRig = FindFirstObjectByType<HoloLensRig>();
+            if (holoRig != null)
+            {
+                if (!Head) Head = holoRig.Head;
+                if (!LeftHand) LeftHand = holoRig.LeftHand;
+                if (!RightHand) RightHand = holoRig.RightHand;
             }
             if (!Head && Camera.main) Head = Camera.main.transform;
 
@@ -294,6 +314,11 @@ namespace TabletopCraft
             _area.BlockSize = () => BlockSizeM; _area.World = () => _world;
             _area.Send = b => _link.Send(b);
             _area.ApplyBlockSize = bs => SetBlockSize(bs, false);
+            // [hololens] The face count area setup treats as over budget: tabletop.json "quad_budget", else the device's
+            // (HoloLens 2 has far less GPU than a Quest 3), else AreaMath.DefaultQuadBudget.
+            int quadBudget = _config != null ? _config.I("quad_budget", 0) : 0;
+            if (quadBudget > 0) _area.State.QuadBudget = quadBudget;
+            else if (Device.QuadBudget > 0) _area.State.QuadBudget = Device.QuadBudget;
 
             // [nav] solid sides for the clipped box, and moving around (XR/NavController)
             _caps = new GameObject("Caps").AddComponent<ClipCaps>();
@@ -436,8 +461,10 @@ namespace TabletopCraft
             markers.Anchor = _anchor; markers.Head = Head;
             markers.HalfSize = () => _nav.State.Loaded ? new Vector2(_nav.State.Window.x, _nav.State.Window.z) * (BlockSizeM / 2f) : Vector2.zero;
             markers.Badge = () => !_health.Offline || Away ? null : _link.FatalCode != 0 ? "Offline: " + _link.FatalReason : "Offline: reconnecting...";
+#if !TABLETOP_HL2
             OVRManager.HMDUnmounted += OnUnmounted;
             OVRManager.HMDMounted += OnMounted;
+#endif
 
             SetupSound();   // [sound] after the menu and the editor (its volume row, own edits)
             Protocol.OperatorName = !string.IsNullOrEmpty(_operatorName) ? _operatorName : SkinPlayer;   // [talk] hello.operator_name
@@ -513,6 +540,11 @@ namespace TabletopCraft
         /// mid-view and the periphery is mostly passthrough.</summary>
         static void ApplyPerf(string perf, int foveation)
         {
+#if TABLETOP_HL2
+            // [hololens] No clock or foveation settings from the app: the HoloLens runtime owns them.
+            Debug.Log($"[Tabletop] PERF_LEVELS device={Device.Name}, perf and foveation settings do not apply");
+            return;
+#else
             try
             {
                 if (perf != "default")
@@ -527,6 +559,7 @@ namespace TabletopCraft
                 Debug.Log($"[Tabletop] PERF_LEVELS perf={perf} foveation={OVRManager.foveatedRenderingLevel} dynamic={OVRManager.useDynamicFoveatedRendering}");
             }
             catch (Exception e) { Debug.LogWarning("[Tabletop] perf levels: " + e.Message); }
+#endif
         }
 
         void LoadPrefs()
@@ -1177,8 +1210,10 @@ namespace TabletopCraft
 
         void OnDestroy()
         {
+#if !TABLETOP_HL2
             OVRManager.HMDUnmounted -= OnUnmounted;
             OVRManager.HMDMounted -= OnMounted;
+#endif
             if (_link != null && !Away) StopLink("app closed");   // [comfort] despawn the giant now, not 10 s later
             _link?.Dispose();
             _atlas?.Dispose();

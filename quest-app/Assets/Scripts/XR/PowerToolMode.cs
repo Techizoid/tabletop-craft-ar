@@ -78,7 +78,7 @@ namespace TabletopCraft.XR
         void Update()
         {
             float now = Time.unscaledTime;
-            if (_hapticOff >= 0 && now >= _hapticOff) { _hapticOff = -1; OVRInput.SetControllerVibration(0, 0, OVRInput.Controller.LTouch); }
+            if (_hapticOff >= 0 && now >= _hapticOff) { _hapticOff = -1; TInput.SetControllerVibration(0, 0, TInput.Controller.LTouch); }
             var w = World?.Invoke();
             bool active = Tools != null && Tools.Mode != ToolMode.None && w != null && w.Loaded && Blocks && Edit && !(Blocked?.Invoke() ?? false);
             if (!active)
@@ -92,9 +92,9 @@ namespace TabletopCraft.XR
             Window(w);
             var t = Edit.Target;
             bool online = Online?.Invoke() ?? true;
-            bool leftDown = OVRInput.GetDown(OVRInput.Button.PrimaryIndexTrigger, OVRInput.Controller.LTouch);
-            bool leftHeld = OVRInput.Get(OVRInput.Button.PrimaryIndexTrigger, OVRInput.Controller.LTouch);
-            bool grip = OVRInput.Get(OVRInput.Button.PrimaryHandTrigger, OVRInput.Controller.LTouch);
+            bool leftDown = TInput.GetDown(TInput.Button.PrimaryIndexTrigger, TInput.Controller.LTouch);
+            bool leftHeld = TInput.Get(TInput.Button.PrimaryIndexTrigger, TInput.Controller.LTouch);
+            bool grip = TInput.Get(TInput.Button.PrimaryHandTrigger, TInput.Controller.LTouch);
             double dnow = Time.unscaledTimeAsDouble;
             if (Tools.Mode == ToolMode.Wand)
             {
@@ -177,7 +177,7 @@ namespace TabletopCraft.XR
 
         void Haptic(float amplitude)
         {
-            OVRInput.SetControllerVibration(0.6f, amplitude, OVRInput.Controller.LTouch);
+            TInput.SetControllerVibration(0.6f, amplitude, TInput.Controller.LTouch);
             _hapticOff = Time.unscaledTime + 0.04f;
         }
     }

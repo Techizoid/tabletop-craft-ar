@@ -115,7 +115,7 @@ namespace TabletopCraft.XR
                     SetBlockSize?.Invoke(AreaSizing.ScaleBlockSize(BlockSize(), StartBlockWidth, cur));
             }
             bool blocked = Blocked != null && Blocked();
-            if (!blocked && OVRInput.GetDown(OVRInput.Button.PrimaryThumbstick, OVRInput.Controller.LTouch))
+            if (!blocked && TInput.GetDown(TInput.Button.PrimaryThumbstick, TInput.Controller.LTouch))
                 Request(AreaSizing.Next(Presets(), _wanted > 0 ? _wanted : Current()));
             if (_wanted > 0 && !blocked)
             {

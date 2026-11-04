@@ -8,7 +8,9 @@
 // yourself (A, drag, turn, Reset view) doesn't move it. A is ignored while the right ray is on the block menu.
 using System;
 using System.Collections;
-using Meta.XR.MRUtilityKit;
+#if !TABLETOP_HL2
+using Meta.XR.MRUtilityKit;   // Quest: the table comes from the headset's scene. HoloLens 2 (TABLETOP_HL2): see Start()
+#endif
 using TabletopCraft.World;
 using UnityEngine;
 
@@ -51,13 +53,24 @@ namespace TabletopCraft.XR
 
         IEnumerator Start()
         {
+#if !TABLETOP_HL2
             if (MRUK.Instance != null) MRUK.Instance.RegisterSceneLoadedCallback(OnSceneLoaded);
             else Status = "no MRUK in scene";
+            float wait = FallbackAfterSeconds;
+            const string fallbackText = "no table found: placed in front of you (hold A to re-place)";
+#else
+            // [hololens] No table detection yet (docs/HOLOLENS2.md "Known gaps"): start in front of you, then you put your
+            // right hand on the table and say "place world" (the same re-place as holding A on Quest).
+            Status = "HoloLens 2: no table detection";
+            float wait = Mathf.Min(FallbackAfterSeconds, 1.5f);
+            const string fallbackText = "placed in front of you: put your right hand on the table and say \"place world\"";
+#endif
             float t = 0;
-            while (!Settled && t < FallbackAfterSeconds) { t += Time.deltaTime; yield return null; }
-            if (!Settled) { PlaceInFront("no table found: placed in front of you (hold A to re-place)"); PlacedBy = Source.Fallback; }
+            while (!Settled && t < wait) { t += Time.deltaTime; yield return null; }
+            if (!Settled) { PlaceInFront(fallbackText); PlacedBy = Source.Fallback; }
         }
 
+#if !TABLETOP_HL2
         void OnSceneLoaded()
         {
             var room = MRUK.Instance.GetCurrentRoom();
@@ -98,12 +111,18 @@ namespace TabletopCraft.XR
             Place(centre, Quaternion.LookRotation(fwd.sqrMagnitude > 0.01f ? fwd : Vector3.forward, up), Source.Table);
             Status = $"placed on table {dist:F2} m away ({TableSize.x:F2} x {TableSize.y:F2} m)";
         }
+#endif
 
         void PlaceInFront(string why)
         {
             Vector3 fwd = Vector3.ProjectOnPlane(Head.forward, Vector3.up).normalized;
             if (fwd.sqrMagnitude < 0.01f) fwd = Vector3.forward;
+#if TABLETOP_HL2
+            // [hololens] Heights start at the head (no floor reference): about table height for someone seated or standing.
+            Vector3 p = Head.position + fwd * 0.55f; p.y = Head.position.y - 0.45f;
+#else
             Vector3 p = Head.position + fwd * 0.5f; p.y = Mathf.Max(0.75f, Head.position.y - 0.6f);
+#endif
             Anchor.SetPositionAndRotation(p, Quaternion.LookRotation(fwd, Vector3.up));
             Status = why;
         }
@@ -129,23 +148,36 @@ namespace TabletopCraft.XR
             if (PlacedBy != Source.None) PlacedBy = Source.Manual;
         }
 
+        /// <summary>[hololens] Whether the right hand is really there to place at. A hand that is down sits at a rest pose
+        /// in front of you, which is no place for the table. Quest: always true, as before.</summary>
+        static bool RightHandSeen()
+        {
+#if TABLETOP_HL2
+            return TInput.GetControllerPositionTracked(TInput.Controller.RTouch);
+#else
+            return true;
+#endif
+        }
+
         void Haptic(float amplitude, float seconds)
         {
-            OVRInput.SetControllerVibration(0.5f, amplitude, OVRInput.Controller.RTouch);
+            TInput.SetControllerVibration(0.5f, amplitude, TInput.Controller.RTouch);
             _hapticOff = Time.unscaledTime + seconds;
         }
 
         void Update()
         {
             float now = Time.unscaledTime;
-            if (_hapticOff >= 0 && now >= _hapticOff) { _hapticOff = -1; OVRInput.SetControllerVibration(0, 0, OVRInput.Controller.RTouch); }
-            bool aDown = OVRInput.Get(OVRInput.Button.One, OVRInput.Controller.RTouch);
+            if (_hapticOff >= 0 && now >= _hapticOff) { _hapticOff = -1; TInput.SetControllerVibration(0, 0, TInput.Controller.RTouch); }
+            bool aDown = TInput.Get(TInput.Button.One, TInput.Controller.RTouch);
             // Area setup's A (confirm; setup may have ended earlier this frame) and A pressed on the menu never re-place
             // the table, even if still held afterwards.
             var ev = HoldA.Update(aDown, now, Suspended || _wasSuspended || (ABlocked != null && ABlocked()));
             _wasSuspended = Suspended;
             if (Suspended) return;
             if (ev == HoldButton.Event.Pressed) Haptic(0.12f, 0.03f);
+            else if (ev == HoldButton.Event.Fired && RightHand != null && !RightHandSeen())
+                Status = "right hand not seen: hold it on the table, in view, and say \"place world\" again";   // [hololens]
             else if (ev == HoldButton.Event.Fired && RightHand != null)
             {
                 Vector3 fwd = Vector3.ProjectOnPlane(Head.forward, Vector3.up).normalized;
@@ -153,7 +185,7 @@ namespace TabletopCraft.XR
                 Status = "placed at right controller";
                 Haptic(0.6f, 0.08f);
             }
-            bool both = OVRInput.Get(OVRInput.Button.PrimaryHandTrigger, OVRInput.Controller.LTouch) && OVRInput.Get(OVRInput.Button.PrimaryHandTrigger, OVRInput.Controller.RTouch);
+            bool both = TInput.Get(TInput.Button.PrimaryHandTrigger, TInput.Controller.LTouch) && TInput.Get(TInput.Button.PrimaryHandTrigger, TInput.Controller.RTouch);
             if (both && RightHand != null)
             {
                 float yaw = RightHand.eulerAngles.y;
@@ -165,7 +197,7 @@ namespace TabletopCraft.XR
             else _grabbing = false;
             // Right stick: up/down scales, left/right turns the table about its centre (whichever axis dominates).
             if (StickBlocked != null && StickBlocked()) return;   // [menu] the stick scrolls the block menu
-            Vector2 rs = OVRInput.Get(OVRInput.Axis2D.PrimaryThumbstick, OVRInput.Controller.RTouch);
+            Vector2 rs = TInput.Get(TInput.Axis2D.PrimaryThumbstick, TInput.Controller.RTouch);
             if (Mathf.Abs(rs.y) > 0.5f && Mathf.Abs(rs.y) >= Mathf.Abs(rs.x)) OnScaleChanged?.Invoke(1f + Mathf.Sign(rs.y) * 0.5f * Time.deltaTime);
             else if (Mathf.Abs(rs.x) > 0.25f && !_grabbing)
             {

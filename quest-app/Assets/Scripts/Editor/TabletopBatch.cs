@@ -25,6 +25,11 @@ namespace TabletopCraft.EditorTools
         /// <summary>OpenXR loader on Android, then TabletopCraft > Create Scene, then Project Setup Tool > Fix All.</summary>
         public static void Setup()
         {
+#if TABLETOP_HL2
+            // [hololens] The Quest setup needs the Android target (Meta's tools); TABLETOP_HL2 is the UWP target's define.
+            Debug.LogError("[Tabletop] Setup is the Quest setup: run it with -buildTarget Android (HoloLens 2: HoloLens2Setup.ConfigureBatch)");
+            EditorApplication.Exit(1);
+#else
             EnableOpenXrLoader(BuildTargetGroup.Android);
             TabletopSceneBuilder.Create();
 
@@ -41,6 +46,7 @@ namespace TabletopCraft.EditorTools
                 EditorApplication.Exit(fix.IsFaulted ? 1 : 0);
             }
             EditorApplication.update += WaitForFix;
+#endif
         }
 
         /// <summary>
@@ -65,7 +71,7 @@ namespace TabletopCraft.EditorTools
             ApplyVersion();
             var options = new BuildPlayerOptions
             {
-                scenes = EditorBuildSettings.scenes.Where(s => s.enabled).Select(s => s.path).ToArray(),
+                scenes = QuestScenes(),
                 locationPathName = ApkPath,
                 target = BuildTarget.Android,
                 targetGroup = BuildTargetGroup.Android,
@@ -166,6 +172,14 @@ namespace TabletopCraft.EditorTools
 
         const int MaxBuildAttempts = 3;
 
+        /// <summary>[hololens] The enabled scenes minus the HoloLens 2 one (its rig has no Quest support); the Quest
+        /// scene when nothing else is left, e.g. right after HoloLens 2 > Create Scene set the build list.</summary>
+        static string[] QuestScenes()
+        {
+            var s = EditorBuildSettings.scenes.Where(x => x.enabled && x.path != HoloLens2Setup.ScenePath).Select(x => x.path).ToArray();
+            return s.Length > 0 ? s : new[] { "Assets/Scenes/Tabletop.unity" };
+        }
+
         /// <summary>
         /// Every error of the failed build is a tool's "Segmentation fault (core dumped)". That line is all the report
         /// has: Bee prints the crashed command line (il2cpp) to stdout, and only the tool's output becomes the error.
@@ -183,7 +197,7 @@ namespace TabletopCraft.EditorTools
         /// versionCode M*1000000 + m*10000 + p*100 + TABLETOP_BUILD (0-99, default 0: a re-upload of the same version to
         /// a store channel needs a higher code; docs/RELEASING.md).
         /// </summary>
-        static void ApplyVersion()
+        internal static void ApplyVersion()   // [hololens] also used by HoloLens2Setup.BuildSolution
         {
             string v = File.ReadAllText(Path.Combine("..", "VERSION")).Trim();
             var parts = v.Split('.').Select(int.Parse).ToArray();
@@ -197,7 +211,7 @@ namespace TabletopCraft.EditorTools
         }
 
         /// <summary>Same as ticking OpenXR in Project Settings > XR Plug-in Management for the given platform.</summary>
-        static void EnableOpenXrLoader(BuildTargetGroup group)
+        internal static void EnableOpenXrLoader(BuildTargetGroup group)   // [hololens] also for BuildTargetGroup.WSA
         {
             if (!EditorBuildSettings.TryGetConfigObject(XRGeneralSettings.k_SettingsKey, out XRGeneralSettingsPerBuildTarget perTarget) || perTarget == null)
             {

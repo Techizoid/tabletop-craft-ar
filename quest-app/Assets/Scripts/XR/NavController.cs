@@ -164,10 +164,10 @@ namespace TabletopCraft.XR
             Vector3 delta = Vector3.zero;
             if (Suspended == null || !Suspended())
             {
-                Vector2 ls = OVRInput.Get(OVRInput.Axis2D.PrimaryThumbstick, OVRInput.Controller.LTouch);
+                Vector2 ls = TInput.Get(TInput.Axis2D.PrimaryThumbstick, TInput.Controller.LTouch);
                 float mag = Mathf.Min(1f, ls.magnitude);
-                bool leftGrip = OVRInput.Get(OVRInput.Button.PrimaryHandTrigger, OVRInput.Controller.LTouch);
-                bool dragging = leftGrip && OVRInput.Get(OVRInput.Button.PrimaryHandTrigger, OVRInput.Controller.RTouch);
+                bool leftGrip = TInput.Get(TInput.Button.PrimaryHandTrigger, TInput.Controller.LTouch);
+                bool dragging = leftGrip && TInput.Get(TInput.Button.PrimaryHandTrigger, TInput.Controller.RTouch);
                 if (mag > DeadZone && !dragging)
                 {
                     if (Follow.Active) StopFollow("manual glide");   // [operator] the stick takes over

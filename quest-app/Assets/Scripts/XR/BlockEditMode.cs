@@ -208,7 +208,7 @@ namespace TabletopCraft.XR
         void Update()
         {
             float now = Time.unscaledTime;
-            if (_hapticOff >= 0 && now >= _hapticOff) { _hapticOff = -1; OVRInput.SetControllerVibration(0, 0, OVRInput.Controller.RTouch); OVRInput.SetControllerVibration(0, 0, OVRInput.Controller.LTouch); }
+            if (_hapticOff >= 0 && now >= _hapticOff) { _hapticOff = -1; TInput.SetControllerVibration(0, 0, TInput.Controller.RTouch); TInput.SetControllerVibration(0, 0, TInput.Controller.LTouch); }
             var w = World?.Invoke();
             Editor.Tick(w, Time.unscaledTimeAsDouble);
             // Nothing to aim with until the server grants edit_v1 (the status line says why), or while area setup runs.
@@ -222,7 +222,7 @@ namespace TabletopCraft.XR
                 _ghost.gameObject.SetActive(false); SetTargetText("");
                 _breakAt = _placeAt = -1;
                 if (_grab.Active) LetGo(null);
-                BButton.Update(OVRInput.Get(OVRInput.Button.Two, OVRInput.Controller.RTouch), Time.unscaledTimeAsDouble, false);   // [power]
+                BButton.Update(TInput.Get(TInput.Button.Two, TInput.Controller.RTouch), Time.unscaledTimeAsDouble, false);   // [power]
                 return;
             }
 
@@ -242,7 +242,7 @@ namespace TabletopCraft.XR
             if (mobs) CollectTargets?.Invoke(_targets);
             Aimed = mobs ? EntityRaycast.Cast(_targets, w.Origin, o, d, d.magnitude, _lo, _hi, _grab.Active ? _grab.Target.Uuid : null) : default;
             bool onMob = EntityRaycast.EntityFirst(Aimed, Target);
-            bool leftGrip = OVRInput.Get(OVRInput.Button.PrimaryHandTrigger, OVRInput.Controller.LTouch);
+            bool leftGrip = TInput.Get(TInput.Button.PrimaryHandTrigger, TInput.Controller.LTouch);
             string block = Target.Hit ? w.State(w.Get(Target.Block.x, Target.Block.y, Target.Block.z)) : null;
             Action = (LeftTaken?.Invoke() ?? false) ? LeftAction.None : UseRules.Decide(onMob, block, sel, leftGrip, Mode, interact);   // [power] a tool owns the trigger
             // What the left trigger would place: re-planned when the aim changes, and a few times a second for the rest
@@ -255,19 +255,19 @@ namespace TabletopCraft.XR
 
             bool online = Online?.Invoke() ?? true;
             // [power] every trigger press starts an edit group: one undo takes back one hold
-            if (OVRInput.GetDown(OVRInput.Button.PrimaryIndexTrigger, OVRInput.Controller.RTouch)) _rightGroup = Groups.Begin();
-            if (OVRInput.GetDown(OVRInput.Button.PrimaryIndexTrigger, OVRInput.Controller.LTouch)) _leftGroup = Groups.Begin();
+            if (TInput.GetDown(TInput.Button.PrimaryIndexTrigger, TInput.Controller.RTouch)) _rightGroup = Groups.Begin();
+            if (TInput.GetDown(TInput.Button.PrimaryIndexTrigger, TInput.Controller.LTouch)) _leftGroup = Groups.Begin();
             // Right trigger = break (on a mob: hit it); press acts at once, holding repeats.
-            if (Held(OVRInput.Controller.RTouch, ref _breakAt, now, true) && (Target.Hit || onMob))
+            if (Held(TInput.Controller.RTouch, ref _breakAt, now, true) && (Target.Hit || onMob))
             {
                 Editor.Group = _rightGroup;
                 if (!online) Editor.Result = "not connected";
                 else if (onMob) Hit(Aimed.Target, d, interact);
-                else Do(Editor.Break(w, Target, Time.unscaledTimeAsDouble), OVRInput.Controller.RTouch);
+                else Do(Editor.Break(w, Target, Time.unscaledTimeAsDouble), TInput.Controller.RTouch);
                 _planAt = -1;
             }
             // Left trigger = the right-click order (UseRules); placing and item uses repeat while held, the rest don't.
-            if (Held(OVRInput.Controller.LTouch, ref _placeAt, now, UseRules.Repeats(Action)) && Action != LeftAction.None)
+            if (Held(TInput.Controller.LTouch, ref _placeAt, now, UseRules.Repeats(Action)) && Action != LeftAction.None)
             {
                 Editor.Group = _leftGroup;
                 if (online) UseLeft(w, d, interact, leftGrip);
@@ -275,13 +275,13 @@ namespace TabletopCraft.XR
                 _planAt = -1;
             }
             // B: a tap picks (on release), a hold undoes ([power] World/PowerTools.cs TapHoldButton)
-            var bEvent = BButton.Update(OVRInput.Get(OVRInput.Button.Two, OVRInput.Controller.RTouch), Time.unscaledTimeAsDouble);
-            if (bEvent == ButtonEvent.Hold) { Undo?.Invoke(); Haptic(OVRInput.Controller.RTouch, 0.5f); }
+            var bEvent = BButton.Update(TInput.Get(TInput.Button.Two, TInput.Controller.RTouch), Time.unscaledTimeAsDouble);
+            if (bEvent == ButtonEvent.Hold) { Undo?.Invoke(); Haptic(TInput.Controller.RTouch, 0.5f); }
             else if (bEvent == ButtonEvent.Tap)
             {
                 if (onMob) PickEgg(Aimed.Target);
-                else if (Target.Hit && PickFilter != null && PickFilter(block)) Haptic(OVRInput.Controller.RTouch, 0.15f);   // [power] Replace's filter
-                else if (Editor.Pick(w, Target)) { Haptic(OVRInput.Controller.RTouch, 0.15f); Picked?.Invoke(Editor.Selected); _planAt = -1; }   // [menu] hotbar
+                else if (Target.Hit && PickFilter != null && PickFilter(block)) Haptic(TInput.Controller.RTouch, 0.15f);   // [power] Replace's filter
+                else if (Editor.Pick(w, Target)) { Haptic(TInput.Controller.RTouch, 0.15f); Picked?.Invoke(Editor.Selected); _planAt = -1; }   // [menu] hotbar
             }
             Carry(w, onMob, leftGrip, now, online);
         }
@@ -300,27 +300,27 @@ namespace TabletopCraft.XR
                     string op = UseRules.EntityOp(sel, NameTag?.Invoke(), out string item, out string text);
                     Send?.Invoke(InteractProtocol.EntityOp(t.Uuid, op, item: item, text: text));
                     Editor.Result = op == "info" ? "info on " + t.Label : op == "name" ? "named " + t.Label + " " + text : "used " + Label(sel) + " on " + t.Label;
-                    Haptic(OVRInput.Controller.LTouch, 0.3f);
+                    Haptic(TInput.Controller.LTouch, 0.3f);
                     return;
                 }
                 case LeftAction.Interact:
-                    Do(Editor.Interact(w, Target, null, grip, d), OVRInput.Controller.LTouch);
+                    Do(Editor.Interact(w, Target, null, grip, d), TInput.Controller.LTouch);
                     return;
                 case LeftAction.Container:
                 case LeftAction.Sign:
                 {
                     var pos = w.Origin + Target.Block;
                     var hook = Action == LeftAction.Container ? OnContainerUse : OnSignUse;
-                    if (hook != null) { hook(pos); Haptic(OVRInput.Controller.LTouch, 0.2f); }
+                    if (hook != null) { hook(pos); Haptic(TInput.Controller.LTouch, 0.2f); }
                     else Editor.Result = Action == LeftAction.Container ? "can't open containers from the headset yet (hold the left grip to place against it)"
                                                                          : "can't edit signs from the headset yet (hold the left grip to place against it)";
                     return;
                 }
                 case LeftAction.Item:
-                    Do(Editor.Interact(w, Target, InteractProtocol.ItemId(sel), grip, d), OVRInput.Controller.LTouch);
+                    Do(Editor.Interact(w, Target, InteractProtocol.ItemId(sel), grip, d), TInput.Controller.LTouch);
                     return;
                 case LeftAction.Place:
-                    Do(Editor.Place(w, Target, d, Time.unscaledTimeAsDouble), OVRInput.Controller.LTouch);
+                    Do(Editor.Place(w, Target, d, Time.unscaledTimeAsDouble), TInput.Controller.LTouch);
                     return;
             }
         }
@@ -331,7 +331,7 @@ namespace TabletopCraft.XR
             if (t.Player && (interact == null || !interact.HarmPlayers)) { Editor.Result = "can't hit players (interact.harm-players is off)"; return; }
             Send?.Invoke(InteractProtocol.EntityOp(t.Uuid, "attack", dir: d));
             Editor.Result = "hit " + t.Label;
-            Haptic(OVRInput.Controller.RTouch, 0.45f);
+            Haptic(TInput.Controller.RTouch, 0.45f);
         }
 
         /// <summary>[hands] B on a mob: its spawn egg goes into the selection (the block menu checks the server offers it).</summary>
@@ -340,7 +340,7 @@ namespace TabletopCraft.XR
             if (t.Player) { Editor.Result = "can't pick a player (no spawn egg)"; return; }
             string egg = InteractProtocol.EggOf(t.Type);
             if (egg == null) return;
-            Haptic(OVRInput.Controller.RTouch, 0.15f);
+            Haptic(TInput.Controller.RTouch, 0.15f);
             Picked?.Invoke(InteractProtocol.Selection(egg));
         }
 
@@ -352,11 +352,11 @@ namespace TabletopCraft.XR
         /// </summary>
         void Carry(WorldModel w, bool onMob, bool leftGrip, float now, bool online)
         {
-            bool rightGrip = OVRInput.Get(OVRInput.Button.PrimaryHandTrigger, OVRInput.Controller.RTouch);
+            bool rightGrip = TInput.Get(TInput.Button.PrimaryHandTrigger, TInput.Controller.RTouch);
             if (!_grab.Active)
             {
                 _ghostOutline.gameObject.SetActive(false); _carryGhost.gameObject.SetActive(false);
-                if (online && onMob && !leftGrip && OVRInput.GetDown(OVRInput.Button.PrimaryHandTrigger, OVRInput.Controller.RTouch))
+                if (online && onMob && !leftGrip && TInput.GetDown(TInput.Button.PrimaryHandTrigger, TInput.Controller.RTouch))
                     _grab = new Grab { Active = true, Target = Aimed.Target, Since = now };
                 return;
             }
@@ -364,7 +364,7 @@ namespace TabletopCraft.XR
             if (drop.HasValue && !BlockRaycast.Overlaps(Vector3Int.FloorToInt(drop.Value), _lo, _hi)) drop = null;
             if (leftGrip || !online) { LetGo(null); return; }
             if (!rightGrip) { LetGo(drop.HasValue ? (Vector3?)(drop.Value + (Vector3)w.Origin) : null); return; }
-            if (!_grab.Holding && now - _grab.Since >= GrabDelaySeconds) { _grab.Holding = true; _grab.NextHold = 0; Haptic(OVRInput.Controller.RTouch, 0.4f); }
+            if (!_grab.Holding && now - _grab.Since >= GrabDelaySeconds) { _grab.Holding = true; _grab.NextHold = 0; Haptic(TInput.Controller.RTouch, 0.4f); }
             DrawCarryGhost(_grab.Holding ? drop : null, w.Origin);
             if (_grab.Holding && !_grab.Target.Player && drop.HasValue && now >= _grab.NextHold)
             {
@@ -389,12 +389,12 @@ namespace TabletopCraft.XR
             if (!g.Holding || Send == null || !(Online?.Invoke() ?? true)) return;
             if (g.Target.Player)
             {
-                if (to.HasValue) { Send(InteractProtocol.EntityOp(g.Target.Uuid, "move", to: to)); Editor.Result = "moved " + g.Target.Label; Haptic(OVRInput.Controller.RTouch, 0.3f); }
+                if (to.HasValue) { Send(InteractProtocol.EntityOp(g.Target.Uuid, "move", to: to)); Editor.Result = "moved " + g.Target.Label; Haptic(TInput.Controller.RTouch, 0.3f); }
                 return;
             }
             Send(InteractProtocol.EntityOp(g.Target.Uuid, "drop", to: to));
             Editor.Result = (to.HasValue ? "put down " : "let go of ") + g.Target.Label;
-            Haptic(OVRInput.Controller.RTouch, 0.3f);
+            Haptic(TInput.Controller.RTouch, 0.3f);
         }
 
         /// <summary>[hands] For the info card: the top of a mob or player as drawn, in Unity world space.</summary>
@@ -430,25 +430,25 @@ namespace TabletopCraft.XR
         }
 
         /// <summary>True on the trigger press, then (when <paramref name="repeat"/>) every RepeatSeconds while it stays held.</summary>
-        bool Held(OVRInput.Controller c, ref float next, float now, bool repeat)
+        bool Held(TInput.Controller c, ref float next, float now, bool repeat)
         {
-            if (OVRInput.GetDown(OVRInput.Button.PrimaryIndexTrigger, c)) { next = now + FirstRepeatSeconds; return true; }
-            if (next < 0 || !OVRInput.Get(OVRInput.Button.PrimaryIndexTrigger, c)) { next = -1; return false; }
+            if (TInput.GetDown(TInput.Button.PrimaryIndexTrigger, c)) { next = now + FirstRepeatSeconds; return true; }
+            if (next < 0 || !TInput.Get(TInput.Button.PrimaryIndexTrigger, c)) { next = -1; return false; }
             if (now < next || !repeat) return false;
             next = now + RepeatSeconds;
             return true;
         }
 
-        void Do(Dictionary<string, object> msg, OVRInput.Controller c)
+        void Do(Dictionary<string, object> msg, TInput.Controller c)
         {
             if (msg == null) return;   // refused locally (Editor.Result says why)
             Send?.Invoke(msg);
             Haptic(c, 0.3f);
         }
 
-        void Haptic(OVRInput.Controller c, float amplitude)
+        void Haptic(TInput.Controller c, float amplitude)
         {
-            OVRInput.SetControllerVibration(0.6f, amplitude, c);
+            TInput.SetControllerVibration(0.6f, amplitude, c);
             _hapticOff = Time.unscaledTime + 0.04f;
         }
 
