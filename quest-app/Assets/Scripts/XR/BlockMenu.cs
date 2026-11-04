@@ -143,11 +143,11 @@ namespace TabletopCraft.XR
         void Update()
         {
             float now = Time.unscaledTime;
-            if (_hapticOff >= 0 && now >= _hapticOff) { _hapticOff = -1; OVRInput.SetControllerVibration(0, 0, OVRInput.Controller.RTouch); }
+            if (_hapticOff >= 0 && now >= _hapticOff) { _hapticOff = -1; TInput.SetControllerVibration(0, 0, TInput.Controller.RTouch); }
             ApplyNames();
             bool blocked = Blocked?.Invoke() ?? false;
             if (blocked && Model.Open) Model.SetOpen(false);
-            if (!blocked && OVRInput.GetDown(OVRInput.Button.Start, OVRInput.Controller.LTouch))
+            if (!blocked && TInput.GetDown(TInput.Button.Start, TInput.Controller.LTouch))
             {
                 Model.Toggle();
                 _placed = false;
@@ -167,15 +167,15 @@ namespace TabletopCraft.XR
                 Pointer();
                 if (Model.CapturesRight)
                 {
-                    if (OVRInput.GetDown(OVRInput.Button.PrimaryIndexTrigger, OVRInput.Controller.RTouch)) Act(Model.Click());
-                    Model.Stick(OVRInput.Get(OVRInput.Axis2D.PrimaryThumbstick, OVRInput.Controller.RTouch).y, Time.unscaledTimeAsDouble);
+                    if (TInput.GetDown(TInput.Button.PrimaryIndexTrigger, TInput.Controller.RTouch)) Act(Model.Click());
+                    Model.Stick(TInput.Get(TInput.Axis2D.PrimaryThumbstick, TInput.Controller.RTouch).y, Time.unscaledTimeAsDouble);
                 }
                 if (Model.Tab == Model.InfoTab && now >= _infoAt) { _infoAt = now + 0.25f; _info = InfoText?.Invoke() ?? ""; }
             }
             else
             {
                 Model.Point(MenuHit.Nothing, false);
-                if (!blocked && OVRInput.GetDown(OVRInput.Button.PrimaryThumbstick, OVRInput.Controller.RTouch))
+                if (!blocked && TInput.GetDown(TInput.Button.PrimaryThumbstick, TInput.Controller.RTouch))
                 {
                     var s = Model.CycleHotbar();
                     if (s != null) { SelectedChanged?.Invoke(s); Haptic(0.2f); }
@@ -217,7 +217,7 @@ namespace TabletopCraft.XR
 
         void Haptic(float amplitude)
         {
-            OVRInput.SetControllerVibration(0.6f, amplitude, OVRInput.Controller.RTouch);
+            TInput.SetControllerVibration(0.6f, amplitude, TInput.Controller.RTouch);
             _hapticOff = Time.unscaledTime + 0.035f;
         }
 

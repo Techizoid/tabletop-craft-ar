@@ -111,13 +111,13 @@ namespace TabletopCraft.XR
 
         void Update()
         {
-            if (OVRInput.GetDown(OVRInput.Button.Two, OVRInput.Controller.LTouch)) Toggle();   // Y: on LTouch alone X = One, Y = Two (Three/Four are unmapped)
+            if (TInput.GetDown(TInput.Button.Two, TInput.Controller.LTouch)) Toggle();   // Y: on LTouch alone X = One, Y = Two (Three/Four are unmapped)
             IssueQueued();   // [comfort] a confirmed area waits for NavState's one-in-flight slot (a glide shift or resize)
             if (!Active) return;
             float now = Time.unscaledTime;
 
-            Vector2 ls = OVRInput.Get(OVRInput.Axis2D.PrimaryThumbstick, OVRInput.Controller.LTouch);
-            Vector2 rs = OVRInput.Get(OVRInput.Axis2D.PrimaryThumbstick, OVRInput.Controller.RTouch);
+            Vector2 ls = TInput.Get(TInput.Axis2D.PrimaryThumbstick, TInput.Controller.LTouch);
+            Vector2 rs = TInput.Get(TInput.Axis2D.PrimaryThumbstick, TInput.Controller.RTouch);
             if (now >= _repeatAt)
             {
                 bool acted = true;
@@ -128,20 +128,20 @@ namespace TabletopCraft.XR
                 else acted = false;
                 if (acted) _repeatAt = now + 0.18f;
             }
-            if (OVRInput.GetDown(OVRInput.Button.One, OVRInput.Controller.LTouch)) State.CycleMode();   // X
-            if (OVRInput.GetDown(OVRInput.Button.PrimaryThumbstick, OVRInput.Controller.RTouch)) AutoFit = !AutoFit;
+            if (TInput.GetDown(TInput.Button.One, TInput.Controller.LTouch)) State.CycleMode();   // X
+            if (TInput.GetDown(TInput.Button.PrimaryThumbstick, TInput.Controller.RTouch)) AutoFit = !AutoFit;
 
             float bs = Mathf.Max(1e-4f, BlockSize());
             HandleDrag(bs);
             HandleNudge(bs);
 
             // B: tap = cancel, hold = override toggle.
-            if (OVRInput.GetDown(OVRInput.Button.Two, OVRInput.Controller.RTouch)) { _bDownAt = now; _bLong = false; }
-            if (_bDownAt >= 0 && !_bLong && OVRInput.Get(OVRInput.Button.Two, OVRInput.Controller.RTouch) && now - _bDownAt > 1f) { _bLong = true; State.OverrideBudget = !State.OverrideBudget; }
-            if (OVRInput.GetUp(OVRInput.Button.Two, OVRInput.Controller.RTouch)) { if (!_bLong && _bDownAt >= 0) { Exit("area setup cancelled"); return; } _bDownAt = -1; }
+            if (TInput.GetDown(TInput.Button.Two, TInput.Controller.RTouch)) { _bDownAt = now; _bLong = false; }
+            if (_bDownAt >= 0 && !_bLong && TInput.Get(TInput.Button.Two, TInput.Controller.RTouch) && now - _bDownAt > 1f) { _bLong = true; State.OverrideBudget = !State.OverrideBudget; }
+            if (TInput.GetUp(TInput.Button.Two, TInput.Controller.RTouch)) { if (!_bLong && _bDownAt >= 0) { Exit("area setup cancelled"); return; } _bDownAt = -1; }
 
             string blocker = State.Blocker();
-            if (OVRInput.GetDown(OVRInput.Button.One, OVRInput.Controller.RTouch))
+            if (TInput.GetDown(TInput.Button.One, TInput.Controller.RTouch))
             {
                 if (blocker != null) Status = "cannot confirm: " + blocker;
                 else
@@ -210,8 +210,8 @@ namespace TabletopCraft.XR
         void HandleDrag(float bs)
         {
             if (!RightHand) return;
-            bool trig = OVRInput.Get(OVRInput.Button.PrimaryIndexTrigger, OVRInput.Controller.RTouch);
-            if (trig && _dragHandle < 0 && OVRInput.GetDown(OVRInput.Button.PrimaryIndexTrigger, OVRInput.Controller.RTouch))
+            bool trig = TInput.Get(TInput.Button.PrimaryIndexTrigger, TInput.Controller.RTouch);
+            if (trig && _dragHandle < 0 && TInput.GetDown(TInput.Button.PrimaryIndexTrigger, TInput.Controller.RTouch))
             {
                 for (int i = 0; i < 3; i++)
                     if (Vector3.Distance(_handles[i].position, RightHand.position) < 0.06f) { _dragHandle = i; _dragStart = RegionRoot.InverseTransformPoint(RightHand.position); _dragSize0 = State.Size; }
@@ -230,7 +230,7 @@ namespace TabletopCraft.XR
         void HandleNudge(float bs)
         {
             if (!RightHand) return;
-            bool grip = OVRInput.Get(OVRInput.Button.PrimaryHandTrigger, OVRInput.Controller.RTouch) && !OVRInput.Get(OVRInput.Button.PrimaryHandTrigger, OVRInput.Controller.LTouch);
+            bool grip = TInput.Get(TInput.Button.PrimaryHandTrigger, TInput.Controller.RTouch) && !TInput.Get(TInput.Button.PrimaryHandTrigger, TInput.Controller.LTouch);
             if (!grip) { _nudging = false; return; }
             Vector3 p = RegionRoot.InverseTransformPoint(RightHand.position);
             if (!_nudging) { _nudging = true; _nudgeStart = p; _nudgeCenter0 = State.Center; _nudgeY0 = State.YOrigin; return; }

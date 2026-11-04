@@ -218,6 +218,7 @@ static class Program
         OperatorTests.Run(Check, Fixture);  // [operator] follow, marks, containers, signs (OperatorTests.cs)
         EyeTests.Run(Check);            // eye in water/lava/powder snow/blocks, water inside faces (EyeTests.cs)
         ComfortTests.Run(Check, Fixture, args);   // [comfort] keyboard, Info tab, prefs.json, discovery, link health (ComfortTests.cs)
+        PadTests.Run(Check);                // [hololens] HoloLens 2 hands and voice as controller inputs (PadTests.cs)
 
         // Block models from a real client jar / resource pack (never committed; MC_CLIENT_JAR or --jar PATH).
         string jar = JarPath(args);

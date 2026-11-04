@@ -70,12 +70,12 @@ namespace TabletopCraft.XR
         void Update()
         {
             float now = Time.unscaledTime;
-            if (_hapticOff >= 0 && now >= _hapticOff) { _hapticOff = -1; OVRInput.SetControllerVibration(0, 0, OVRInput.Controller.RTouch); }
+            if (_hapticOff >= 0 && now >= _hapticOff) { _hapticOff = -1; TInput.SetControllerVibration(0, 0, TInput.Controller.RTouch); }
             bool blocked = Blocked?.Invoke() ?? false;
             Vector3 top = default;
             bool shown = Model.Open && Top != null && Top(Model.Uuid, out top);
             Model.Tick(Time.unscaledTimeAsDouble, shown);
-            if (Model.Open && OVRInput.GetDown(OVRInput.Button.Two, OVRInput.Controller.RTouch) && !Model.CapturesRight) Model.Close();   // B closes it too
+            if (Model.Open && TInput.GetDown(TInput.Button.Two, TInput.Controller.RTouch) && !Model.CapturesRight) Model.Close();   // B closes it too
             bool open = Model.Open && !blocked;
             _card.gameObject.SetActive(open);
             if (!open) { Model.Point(0, 0, false); _laser.gameObject.SetActive(false); return; }
@@ -83,7 +83,7 @@ namespace TabletopCraft.XR
             _card.position = top + Vector3.up * (LiftM + Model.Height / 2);
             if (Head) { var look = _card.position - Head.position; if (look.sqrMagnitude > 1e-6f) _card.rotation = Quaternion.LookRotation(look, Vector3.up); }
             if (RayTaken?.Invoke() ?? false) Model.Point(0, 0, false); else Pointer();
-            if (Model.CapturesRight && OVRInput.GetDown(OVRInput.Button.PrimaryIndexTrigger, OVRInput.Controller.RTouch)) Click();
+            if (Model.CapturesRight && TInput.GetDown(TInput.Button.PrimaryIndexTrigger, TInput.Controller.RTouch)) Click();
             if (_drawn != Model.Version || Model.CapturesRight) Draw();   // the cursor dot follows the ray
             _laser.gameObject.SetActive(Model.CapturesRight);
         }
@@ -93,7 +93,7 @@ namespace TabletopCraft.XR
             string uuid = Model.Uuid, label = Model.Info?.Lines()[0];
             string op = Model.Click(Time.unscaledTimeAsDouble);
             if (op == null) return;
-            OVRInput.SetControllerVibration(0.6f, 0.35f, OVRInput.Controller.RTouch);
+            TInput.SetControllerVibration(0.6f, 0.35f, TInput.Controller.RTouch);
             _hapticOff = Time.unscaledTime + 0.035f;
             if (op == "close") return;
             Send?.Invoke(InteractProtocol.EntityOp(uuid, op));

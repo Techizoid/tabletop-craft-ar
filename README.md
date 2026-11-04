@@ -7,6 +7,8 @@
 > **NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.**
 > The project ships no Mojang assets: textures and sounds come from your own copy of the game.
 
+> **HoloLens 2 fork.** This fork of [NickStassen/tabletop-craft-ar](https://github.com/NickStassen/tabletop-craft-ar) adds a HoloLens 2 build, like the 2015 Minecraft HoloLens demo: the world on your table, played with air taps, pinches and voice commands. It uses the same server and keeps the Quest 3 build. It's untested on a device so far. Setup, controls and status: [docs/HOLOLENS2.md](docs/HOLOLENS2.md).
+
 ![Turning and scaling the miniature in a real room: it shrinks to a block on the floor, tumbles as it is turned, then grows until the viewer is standing in the terrain](docs/media/tabletop-scale-move.gif)
 
 ## What it does

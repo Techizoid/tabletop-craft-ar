@@ -1,7 +1,9 @@
 // Menu: TabletopCraft > Create Scene. Builds the passthrough scene in code (same approach as the HUD repo):
 // OVRCameraRig with passthrough, an OVRPassthroughLayer underlay, the MRUK prefab-equivalent component with
 // scene loading on startup, and TabletopApp. Fix the builder rather than hand-editing the scene file.
-#if UNITY_EDITOR
+// [hololens] Quest only: hidden while the HoloLens 2 target (TABLETOP_HL2) is active; HoloLens 2 has its own builder
+// (TabletopCraft > HoloLens 2 > Create Scene, Editor/HoloLens2Setup.cs).
+#if UNITY_EDITOR && !TABLETOP_HL2
 using Meta.XR.MRUtilityKit;
 using UnityEditor;
 using UnityEditor.SceneManagement;

@@ -23,8 +23,8 @@ namespace TabletopCraft.XR
             if (Time.unscaledTime < _next) return;
             _next = Time.unscaledTime + 1f / Hz;
             var head = ToTabletop(Head, true);
-            TabletopPose? l = LeftHand ? ToTabletop(LeftHand, Tracked(OVRInput.Controller.LTouch, OVRInput.Controller.LHand)) : (TabletopPose?)null;
-            TabletopPose? r = RightHand ? ToTabletop(RightHand, Tracked(OVRInput.Controller.RTouch, OVRInput.Controller.RHand)) : (TabletopPose?)null;
+            TabletopPose? l = LeftHand ? ToTabletop(LeftHand, Tracked(TInput.Controller.LTouch, TInput.Controller.LHand)) : (TabletopPose?)null;
+            TabletopPose? r = RightHand ? ToTabletop(RightHand, Tracked(TInput.Controller.RTouch, TInput.Controller.RHand)) : (TabletopPose?)null;
             long ts = Clock.ElapsedTicks * 1_000_000L / Stopwatch.Frequency;
             var msg = Protocol.Pose(ts, head, l, r);
             // [nav] the snapshot whose origin RegionRoot is at, so the giant doesn't jump while a moved region is in flight.
@@ -41,7 +41,7 @@ namespace TabletopCraft.XR
             return TabletopPose.FromUnityLocal(lp, lr, tracked);
         }
 
-        static bool Tracked(OVRInput.Controller touch, OVRInput.Controller hand) =>
-            OVRInput.GetControllerPositionTracked(touch) || OVRInput.GetControllerPositionTracked(hand);
+        static bool Tracked(TInput.Controller touch, TInput.Controller hand) =>
+            TInput.GetControllerPositionTracked(touch) || TInput.GetControllerPositionTracked(hand);
     }
 }
