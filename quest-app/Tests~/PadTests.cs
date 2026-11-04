@@ -98,6 +98,38 @@ static class PadTests
         g.Update(Thumb(open, open.IndexTip + P(0.01f, 0, 0)), Right, Forward);
         o = g.Update(new HandPose { Tracked = false }, Right, Forward);
         check(!o.Tracked && !o.Trigger && g.Pinch == PinchKind.None, "hl2: a lost hand lets go of everything");
+
+        // The classic HoloLens air tap: middle, ring and little fingers curled, the index out to meet the thumb.
+        g.Reset();
+        var looseTap = new HandPose
+        {
+            Tracked = true, Palm = P(0, 0, 0), IndexTip = P(0.03f, 0.02f, 0.07f), ThumbTip = P(0.04f, 0.02f, 0.07f),
+            MiddleTip = P(0, 0, 0.04f), RingTip = P(-0.02f, 0, 0.035f), LittleTip = P(-0.035f, 0, 0.03f),
+        };
+        o = g.Update(looseTap, Right, Forward);
+        check(o.Trigger && !o.Grip, "hl2: an air tap with the other fingers curled is a tap, not a fist");
+
+        // A tracking blip in the middle of a held pinch: no release and press again (an extra break or place).
+        {
+            var t = new HandGestureTracker(); var pad = new PadState();
+            var pinch = Thumb(open, open.IndexTip + P(0.01f, 0, 0));
+            var lost = new HandPose { Tracked = false };
+            int downs = 0, ups = 0;
+            void Step(HandPose hp, double tm)
+            {
+                pad.Advance(t.Update(hp, Right, Forward, tm), default, null, tm);
+                if (pad.Down(PadSide.Left, PadButton.Trigger)) downs++;
+                if (pad.Up(PadSide.Left, PadButton.Trigger)) ups++;
+            }
+            Step(pinch, 0); Step(lost, 1 / 60.0); Step(pinch, 2 / 60.0);
+            check(downs == 1 && ups == 0, "hl2: a one-frame tracking blip doesn't release a held pinch");
+            Step(lost, 3 / 60.0);
+            check(t.LastPose.Tracked && t.LastPose.ThumbTip.X == pinch.ThumbTip.X, "hl2: during a blip the hand stays at its last tracked pose");
+            Step(lost, 0.1);
+            check(ups == 0, "hl2: still held 50 ms into a loss");
+            Step(lost, 0.25);
+            check(downs == 1 && ups == 1 && !pad.Tracked(PadSide.Left), "hl2: a real loss (over 0.15 s) lets go");
+        }
     }
 
     static void Voice(Action<bool, string> check)
@@ -201,6 +233,14 @@ static class PadTests
         check(sr.X > 0 && sl.X < 0 && sr.Y < head.Y && Math.Abs(sr.Y - sl.Y) < 1e-5f, "hl2: shoulders sit either side of and below the head");
         var d = AimMath.Direction(sr, sr + P(0, -0.3f, 0.4f));
         check(Math.Abs(d.Length - 1f) < 1e-4f && d.Z > 0 && d.Y < 0, "hl2: the ray points from the shoulder through the hand");
+
+        var rr = AimMath.Rest(head, Forward, Right, PadSide.Right);
+        var rl = AimMath.Rest(head, Forward, Right, PadSide.Left);
+        check(rr.X > 0 && rl.X < 0 && rr.Z > 0 && rl.Z > 0 && rr.Y < head.Y && rl.Y < head.Y &&
+              PadVec3.Distance(rr, head) > 0.3f && PadVec3.Distance(rl, head) > 0.3f,
+              "hl2: a hand that is down rests low in front, on its own side, never at the eyes (menus and previews hang on it)");
+        var gp = AimMath.GazePoint(head, P(0, -0.6f, 0.8f));
+        check(Math.Abs(PadVec3.Distance(gp, head) - 0.6f) < 1e-4f && gp.Y < head.Y, "hl2: a resting right hand aims 0.6 m along the gaze");
     }
 
     static void Profile(Action<bool, string> check)

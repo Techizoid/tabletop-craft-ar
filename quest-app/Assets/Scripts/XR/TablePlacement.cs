@@ -148,6 +148,17 @@ namespace TabletopCraft.XR
             if (PlacedBy != Source.None) PlacedBy = Source.Manual;
         }
 
+        /// <summary>[hololens] Whether the right hand is really there to place at. A hand that is down sits at a rest pose
+        /// in front of you, which is no place for the table. Quest: always true, as before.</summary>
+        static bool RightHandSeen()
+        {
+#if TABLETOP_HL2
+            return TInput.GetControllerPositionTracked(TInput.Controller.RTouch);
+#else
+            return true;
+#endif
+        }
+
         void Haptic(float amplitude, float seconds)
         {
             TInput.SetControllerVibration(0.5f, amplitude, TInput.Controller.RTouch);
@@ -165,6 +176,8 @@ namespace TabletopCraft.XR
             _wasSuspended = Suspended;
             if (Suspended) return;
             if (ev == HoldButton.Event.Pressed) Haptic(0.12f, 0.03f);
+            else if (ev == HoldButton.Event.Fired && RightHand != null && !RightHandSeen())
+                Status = "right hand not seen: hold it on the table, in view, and say \"place world\" again";   // [hololens]
             else if (ev == HoldButton.Event.Fired && RightHand != null)
             {
                 Vector3 fwd = Vector3.ProjectOnPlane(Head.forward, Vector3.up).normalized;

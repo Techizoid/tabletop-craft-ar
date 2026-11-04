@@ -7,6 +7,8 @@
 using UnityEngine;
 #if TABLETOP_HL2
 using System.Collections.Generic;
+using System.IO;
+using TabletopCraft.Net;
 using TabletopCraft.World;
 using UnityEngine.Windows.Speech;
 using UnityEngine.XR.Hands;
@@ -40,7 +42,14 @@ namespace TabletopCraft.XR
 
         void Start()
         {
-            if (!Voice) return;
+            // tabletop.json "voice": false turns voice off. Read here: this runs before TabletopApp loads the config.
+            try
+            {
+                string p = Path.Combine(Application.persistentDataPath, ConfigFile.FileName);
+                if (File.Exists(p) && Json.Parse(File.ReadAllText(p)) is Dictionary<string, object> c) Voice = c.B("voice", Voice);
+            }
+            catch (System.Exception e) { Debug.LogWarning("[Tabletop] VOICE: tabletop.json not read: " + e.Message); }
+            if (!Voice) { Debug.Log("[Tabletop] VOICE off (tabletop.json \"voice\": false)"); return; }
             try
             {
                 _speech = new KeywordRecognizer(VoiceCommandTable.Phrases(), ConfidenceLevel.Medium);
@@ -76,14 +85,15 @@ namespace TabletopCraft.XR
             var subsystem = Hands();
             HandPose lp = default, rp = default;
             if (subsystem != null) { lp = Read(subsystem.leftHand); rp = Read(subsystem.rightHand); }
-            var lo = _left.Update(lp, fR, fF);
-            var ro = _right.Update(rp, fR, fF);
+            var lo = _left.Update(lp, fR, fF, now);
+            var ro = _right.Update(rp, fR, fF, now);
             Pad.Advance(lo, ro, Spoken, now);
 
             if (Rig != null && head != null)
             {
-                Aim(Rig.LeftHand, lp, head, PadSide.Left);
-                Aim(Rig.RightHand, rp, head, PadSide.Right);
+                // A hand lost for a moment (still "tracked" in its output) stays where it was last seen.
+                Aim(Rig.LeftHand, lp.Tracked || !lo.Tracked ? lp : _left.LastPose, head, PadSide.Left, fF, fR);
+                Aim(Rig.RightHand, rp.Tracked || !ro.Tracked ? rp : _right.LastPose, head, PadSide.Right, fF, fR);
             }
         }
 
@@ -117,13 +127,27 @@ namespace TabletopCraft.XR
         }
 
         /// <summary>
-        /// The hand transform: at the palm, pointing from the shoulder through it (a far ray). A hand that is down follows
-        /// the head instead, so the right ray becomes gaze, as on the first HoloLens: look at a block, raise a hand, tap.
+        /// The hand transform: at the palm, pointing from the shoulder through it (a far ray). A hand that is down rests
+        /// low in front of you on its side (body-locked, so what hangs on it, like the menus on the left hand and the block
+        /// preview on the right one, stays in view and out of your face); the right one then aims where you look, so its
+        /// ray follows your gaze: look at a block and say "pick block", or raise the hand and tap.
         /// </summary>
-        static void Aim(Transform t, HandPose h, Transform head, PadSide side)
+        static void Aim(Transform t, HandPose h, Transform head, PadSide side, PadVec3 flatFwd, PadVec3 flatRight)
         {
             if (!t) return;
-            if (!h.Tracked) { t.SetPositionAndRotation(head.position, head.rotation); return; }
+            if (!h.Tracked)
+            {
+                var rest = AimMath.Rest(V(head.position), flatFwd, flatRight, side);
+                var at = new Vector3(rest.X, rest.Y, rest.Z);
+                Vector3 look = new Vector3(flatFwd.X, flatFwd.Y, flatFwd.Z);
+                if (side == PadSide.Right)
+                {
+                    var g = AimMath.GazePoint(V(head.position), V(head.forward));
+                    look = new Vector3(g.X, g.Y, g.Z) - at;
+                }
+                t.SetPositionAndRotation(at, look.sqrMagnitude > 1e-6f ? Quaternion.LookRotation(look, Vector3.up) : head.rotation);
+                return;
+            }
             var palm = new Vector3(h.Palm.X, h.Palm.Y, h.Palm.Z);
             var dir = AimMath.Direction(AimMath.Shoulder(V(head.position), V(head.right), side), h.Palm);
             var d = new Vector3(dir.X, dir.Y, dir.Z);

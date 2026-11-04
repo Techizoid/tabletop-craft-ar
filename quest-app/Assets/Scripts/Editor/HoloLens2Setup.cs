@@ -117,7 +117,11 @@ namespace TabletopCraft.EditorTools
         static void ConfigurePlayer()
         {
             PlayerSettings.SetScriptingBackend(Uwp, ScriptingImplementation.IL2CPP);
-            EditorUserBuildSettings.wsaArchitecture = "ARM64";
+            // wsaArchitecture is real but undocumented in Unity 6: set it by reflection so a missing property can never
+            // break the editor scripts' compile (and with them the Quest tools). Visual Studio picks ARM64 anyway.
+            var arch = typeof(EditorUserBuildSettings).GetProperty("wsaArchitecture", BindingFlags.Public | BindingFlags.Static);
+            if (arch != null && arch.CanWrite) arch.SetValue(null, "ARM64");
+            else Debug.LogWarning("[Tabletop] HL2: set the architecture to ARM64 in Build Settings (or in Visual Studio)");
             EditorUserBuildSettings.wsaUWPBuildType = WSAUWPBuildType.D3D;
             PlayerSettings.WSA.SetTargetDeviceFamily(PlayerSettings.WSATargetFamily.Holographic, true);
             PlayerSettings.WSA.packageName = "TabletopCraftAR";

@@ -47,10 +47,17 @@ namespace TabletopCraft.World
     {
         /// <summary>Thumb tip to finger tip: the pinch closes below Engage and opens above Release.</summary>
         public float PinchEngage = 0.022f, PinchRelease = 0.040f;
-        /// <summary>Mean distance of the four fingertips to the palm: a fist is below Engage until it opens past Release.</summary>
+        /// <summary>
+        /// Fingertip to palm. A fist needs the index tip AND the mean of the other three below Engage, and stays a fist
+        /// until either opens past Release. The classic air tap (other fingers curled, index out to meet the thumb) keeps
+        /// the index out, so it is a pinch and never a fist.
+        /// </summary>
         public float CurlEngage = 0.055f, CurlRelease = 0.075f;
         /// <summary>Hand travel from where the middle pinch started that is full stick deflection, and the part ignored.</summary>
         public float StickReach = 0.10f, StickDead = 0.015f;
+        /// <summary>A hand lost for less than this keeps its last state, so a tracking blip doesn't release a held pinch
+        /// and press it again (which would be an extra break or place).</summary>
+        public double LostGraceSeconds = 0.15;
     }
 
     public enum PinchKind { None, Index, Middle, Ring }
@@ -73,25 +80,43 @@ namespace TabletopCraft.World
         PinchKind _pinch;
         bool _fist;
         PadVec3 _stickOrigin;
+        HandOutput _last;
+        HandPose _lastPose;
+        double _lostAt = double.NaN;
 
         public HandGestureTracker(GestureSettings settings = null) { _s = settings ?? new GestureSettings(); }
 
         public PinchKind Pinch => _pinch;
         public bool Fist => _fist;
+        /// <summary>The last tracked pose: where the hand is shown while a short loss is bridged.</summary>
+        public HandPose LastPose => _lastPose;
 
-        public void Reset() { _pinch = PinchKind.None; _fist = false; }
+        public void Reset() { _pinch = PinchKind.None; _fist = false; _last = default; _lostAt = double.NaN; }
 
         /// <param name="frameRight">Horizontal unit vector to the user's right (from the head's yaw).</param>
         /// <param name="frameForward">Horizontal unit vector the user faces.</param>
-        public HandOutput Update(HandPose h, PadVec3 frameRight, PadVec3 frameForward)
+        /// <param name="now">Seconds; with it, a loss shorter than LostGraceSeconds keeps the last output. Without it
+        /// (NaN), a lost hand lets go at once.</param>
+        public HandOutput Update(HandPose h, PadVec3 frameRight, PadVec3 frameForward, double now = double.NaN)
         {
             var o = new HandOutput();
-            if (!h.Tracked) { Reset(); return o; }
+            if (!h.Tracked)
+            {
+                if (!double.IsNaN(now) && _last.Tracked)
+                {
+                    if (double.IsNaN(_lostAt)) _lostAt = now;
+                    if (now - _lostAt < _s.LostGraceSeconds) return _last;
+                }
+                Reset();
+                return o;
+            }
+            _lostAt = double.NaN;
             o.Tracked = true;
 
-            float curl = (PadVec3.Distance(h.IndexTip, h.Palm) + PadVec3.Distance(h.MiddleTip, h.Palm) +
-                          PadVec3.Distance(h.RingTip, h.Palm) + PadVec3.Distance(h.LittleTip, h.Palm)) * 0.25f;
-            _fist = _fist ? curl < _s.CurlRelease : curl < _s.CurlEngage;
+            float index = PadVec3.Distance(h.IndexTip, h.Palm);
+            float rest = (PadVec3.Distance(h.MiddleTip, h.Palm) + PadVec3.Distance(h.RingTip, h.Palm) +
+                          PadVec3.Distance(h.LittleTip, h.Palm)) / 3f;
+            _fist = _fist ? index < _s.CurlRelease && rest < _s.CurlRelease : index < _s.CurlEngage && rest < _s.CurlEngage;
 
             // A fist brings the thumb to the fingers too, so a closed hand is a grip and never a pinch.
             if (_fist) _pinch = PinchKind.None;
@@ -128,6 +153,8 @@ namespace TabletopCraft.World
                 o.StickX = Deflect(PadVec3.Dot(d, frameRight.Normalized));
                 o.StickY = Deflect(PadVec3.Dot(d, frameForward.Normalized));
             }
+            _last = o;
+            _lastPose = h;
             return o;
         }
 
@@ -148,6 +175,19 @@ namespace TabletopCraft.World
             head + headRight.Normalized * (side == PadSide.Right ? lateral : -lateral) + new PadVec3(0, -below, 0);
 
         public static PadVec3 Direction(PadVec3 shoulder, PadVec3 hand) => (hand - shoulder).Normalized;
+
+        /// <summary>
+        /// Where a hand that is down is shown: in front of you, low and to its side, like a controller held at rest.
+        /// The app hangs things on the hand transforms (the left hand carries the menus and the wrist chat; the right
+        /// one the block preview), so they must never sit at the eyes. Directions are horizontal, from the head's yaw.
+        /// </summary>
+        public static PadVec3 Rest(PadVec3 head, PadVec3 flatForward, PadVec3 flatRight, PadSide side) =>
+            head + flatForward.Normalized * (side == PadSide.Right ? 0.30f : 0.35f)
+                 + flatRight.Normalized * (side == PadSide.Right ? 0.15f : -0.15f)
+                 + new PadVec3(0, side == PadSide.Right ? -0.25f : -0.30f, 0);
+
+        /// <summary>The point a hand that is down aims at: along the gaze, at about table distance.</summary>
+        public static PadVec3 GazePoint(PadVec3 head, PadVec3 headForward, float metres = 0.6f) => head + headForward.Normalized * metres;
     }
 
     /// <summary>A spoken phrase and the controller input it presses for a moment.</summary>

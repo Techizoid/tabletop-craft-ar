@@ -37,17 +37,17 @@ Unity -batchmode -nographics -quit -projectPath quest-app -buildTarget WSAPlayer
 
 Run `ConfigureBatch` without `-quit`. If it adds XR Hands it exits with code 2: run it again until it logs `HoloLens 2 setup done`.
 
-To go back to the Quest build, switch the platform to Android and run **TabletopCraft > Create Scene** (or `TabletopBatch.Setup`). `TABLETOP_HL2` belongs to the UWP platform only, and `BuildApk` never builds the HoloLens 2 scene.
+To go back to the Quest build, switch the platform to Android and run **TabletopCraft > Create Scene** (or `TabletopBatch.Setup`). `TABLETOP_HL2` belongs to the UWP platform only, and `BuildApk` never builds the HoloLens 2 scene. Unity's own Build window builds whatever is in the scene list: after HoloLens 2 > Create Scene that's the HoloLens 2 scene, until the Quest Create Scene puts its own back.
 
 ## First run
 
 The first run is the same as on Quest. Start the app at a table and it finds the server on the LAN and shows a 6-digit code. Type `tabletop pair <code>` in the server window. The game files (about 75 MB) then download once. On Windows, the server PC's network must be **Private** so the firewall rules apply.
 
-The world first appears about half a metre in front of you, a little below eye height. To put it on your table, rest your **right hand on the table** and say **"place world"**.
+The world first appears about half a metre in front of you, a little below eye height. To put it on your table, rest your **right hand on the table**, where the HoloLens can see it, and say **"place world"**. If the hand isn't seen, the app says so and leaves the world where it is.
 
 ## Controls
 
-The right hand's ray comes from your shoulder through your hand, like other HoloLens apps. **With your hand down, the ray follows your gaze**: look at a block, raise a hand and air-tap.
+The right hand's ray comes from your shoulder through your hand, like other HoloLens apps. **With your right hand down, the ray follows your gaze.** It then starts low in front of you and points where you look, so you can look at a block and say "pick block", or raise your hand and air-tap. A hand that is down rests low in front of you on its own side, so the menus (left hand) and the block preview (right hand) stay in view. A hand lost for under 0.15 s keeps its pinch, so a tracking blip doesn't break or place an extra block.
 
 | What | Quest 3 | HoloLens 2 |
 |---|---|---|
@@ -68,7 +68,7 @@ The right hand's ray comes from your shoulder through your hand, like other Holo
 | Operator panel (chat, console, players) | X | say "operator panel" |
 | Area setup | Y | say "area setup", then "confirm area" (A) or "cancel setup" (B) |
 
-The phrases are in English. Each has two words or more so the recognizer is steadier, and none clashes with HoloLens system commands. A pinch only counts while the other fingers stay open, so a fist is never an air tap. HoloLens 2 has no haptics: the app's sounds and visuals confirm actions.
+The phrases are in English. Each has two words or more so the recognizer is steadier, and none clashes with HoloLens system commands. A fist needs the index finger curled too, so an air tap with the other fingers curled still counts as a tap. HoloLens 2 has no haptics: the app's sounds and visuals confirm actions.
 
 ## Differences from the Quest build
 
@@ -76,6 +76,7 @@ The phrases are in English. Each has two words or more so the recognizer is stea
 - **Additive display.** Black shows as clear, so dark caves and night scenes fade out. The app raises the darkest light level to 0.4 (Quest: 0.2). Override it with `"min_light"` in `tabletop.json`.
 - **Smaller budget.** HoloLens 2 has far less GPU than a Quest 3, so area setup treats areas over about **60k faces** as over budget (Quest: 250k). The Quest's hold-B override has no voice command yet; to raise the cap, set `"quad_budget": 100000` in `tabletop.json`. Meshing uses 2 worker threads (`"mesh_workers"`).
 - **No clock or foveation settings.** The `perf` and `foveation` keys in `tabletop.json` don't apply.
+- **Voice off:** set `"voice": false` in `tabletop.json` to use hands only.
 - **Files on the device.** `tabletop.json` and the game files live in the app's `LocalState` folder. You can reach it with the Windows Device Portal (*System > File explorer > LocalAppData > TabletopCraftAR_… > LocalState*). With pairing and the automatic game files you shouldn't need it.
 
 ## Troubleshooting
